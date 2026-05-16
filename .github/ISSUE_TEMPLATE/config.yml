@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🌐 Install Grabio
+    url: https://grabio.adityaarsharma.com
+    about: One-tap install. Free 5 actions/day, no signup.
+  - name: 📧 Email the operator
+    url: mailto:grabio@adityaarsharma.com
+    about: Direct line. Human reply within 24h on weekdays.
+  - name: 🛡 Security disclosure
+    url: https://github.com/adityaarsharma/grabio/security/advisories/new
+    about: Report a vulnerability privately via GitHub's security advisory flow.
