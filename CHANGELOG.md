@@ -4,6 +4,28 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
+## [3.2.0] — 2026-05-17
+
+### Added — Pro onboarding via Brevo
+
+Brevo is back in the stack but only for Pro customer onboarding. Free users still have **zero email collected**. The flow:
+
+1. User buys Pro on Polar → Polar webhook fires `subscription.created` / `benefit_granted`.
+2. Server extracts `data.customer.email` and pushes the contact into **Brevo list #9** with `PRO_PURCHASE_DATE` attribute.
+3. Brevo dashboard automations fire on schedule: **Day 1** thank-you, **Day 2** + **Day 7** feedback prompts. Configured in Brevo UI, no code on Grabio's side.
+4. Grabio's own Redis still stores no email — the address lives only inside Brevo.
+
+### Changed
+
+- Privacy Policy updated:
+  - TL;DR now mentions Brevo for Pro buyer onboarding (Day 1/2/7).
+  - Subprocessor table re-adds Brevo (France, EU) as Pro-only.
+  - Data table adds a row for "Pro buyer email — relayed from Polar to Brevo".
+
+### Why
+
+User research on the v3 launch showed Pro customers want a confirmation + a quick feedback channel. Brevo handles three transactional/onboarding emails per Pro signup with zero ongoing marketing list bloat. Free users gain nothing from being emailed; they stay opt-out by design.
+
 ## [3.1.0] — 2026-05-17
 
 ### Added — sharing-first UX

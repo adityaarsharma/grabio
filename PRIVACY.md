@@ -49,6 +49,7 @@ We use the smallest possible set of third-party services that touch any Grabio d
 | Hetzner Online GmbH | Germany (EU) | Server hosting | All processed data in transit + 1-hour cache |
 | Plausible (self-hosted) | Germany | Aggregate page-view analytics | No personal data; aggregate counts only |
 | Polar.sh (Merchant of Record) | United States | Payment processing, VAT/tax compliance, receipt email to buyer | Buyer email + card data (we never see card numbers; **Polar keeps the email, not us**) |
+| Brevo (Sendinblue) | France (EU) | Pro-buyer onboarding emails only — Day 1 thank-you, Day 2 + Day 7 feedback prompts. Triggered on Pro purchase via Polar webhook. **Free users never enter Brevo.** | Pro buyer email + purchase date |
 | Cloudflare | United States | DNS for grabio.adityaarsharma.com | Inferred IP at DNS resolution (not stored by us) |
 | Apple iCloud | International | Distributes the Shortcut binary | Anonymous to us; Apple's terms apply |
 
