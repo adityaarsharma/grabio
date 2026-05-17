@@ -1,6 +1,6 @@
 # Grabio
 
-> **The iPhone utility toolkit. One Apple Shortcut. 22 file utilities. No app, no signup, no tracking.**
+> **The iPhone utility toolkit. One Apple Shortcut. 25+ file utilities. No app, no signup, no tracking.**
 
 [![Website](https://img.shields.io/badge/website-grabio.adityaarsharma.com-ea580c?style=flat-square)](https://grabio.adityaarsharma.com)
 [![Privacy](https://img.shields.io/badge/privacy-first-16a34a?style=flat-square)](./PRIVACY.md)
@@ -21,7 +21,7 @@ The Shortcut is distributed via iCloud (no App Store needed). One tap, no sign-u
 
 | | |
 |---|---|
-| **What it is** | An iOS 14+ Apple Shortcut that adds 22 file utilities to your iPhone share sheet |
+| **What it is** | An iOS 14+ Apple Shortcut that adds 25+ file utilities to your iPhone share sheet |
 | **What it does** | Compress, convert, PDF tools, background remove, QR codes, photo resize, format conversion, privacy stripping |
 | **Free tier** | 5 actions/day, every utility, forever |
 | **Pro tier** | $3/month → 30 actions/day. 7-day refund, no questions. |
@@ -75,6 +75,35 @@ You can:
 5. The result lands back in Photos or Files. The original file on the server is deleted within 1 hour.
 
 No account, no email collected on Grabio's side, no telemetry. The backend's database is a row of integers (`hash:date = count`) for rate-limiting and a single Pro-entitlement key per device. That's it. If you buy Pro, your email goes to Polar (our payment processor) — never to Grabio's server.
+
+## What's wired vs API-only
+
+Grabio is sharing-first: every utility is invoked by "Share → Grabio" from the iOS share sheet. The Shortcut binary submenus cover ~25 utilities. A small number of advanced API-only endpoints exist for direct callers but are not yet reachable from the share sheet (they need the Shortcut binary to support multi-file picking).
+
+| Feature | Share-sheet wired | API endpoint |
+|---|---|---|
+| Webpage → PDF | ✅ Share URL → "Save as PDF" | `/api/v3/url/to-pdf` |
+| Webpage → Screenshot | ✅ Share URL → "Save as Image" | `/api/v3/url/to-image` |
+| Photo compress to exact KB | ✅ Share photo → "Compress to exact size" | `/api/v3/compress-exact` |
+| Smart photo compress | ✅ | (legacy) |
+| HEIC / image format convert | ✅ | (legacy) |
+| Video / audio format convert | ✅ | ffmpeg |
+| Resize for social presets | ✅ Share photo → "Resize for social" | `/api/v3/resize` |
+| Photo → PDF | ✅ Share photo → "Convert to PDF" | `/api/v3/pdf/from-photo` |
+| White background fill | ✅ Share photo → "White Background Fill" | `/api/v3/bg-fill` |
+| AI background remove | ✅ (Pro) | rembg |
+| Live Photo → GIF | ✅ Share Live Photo → "GIF" | ffmpeg |
+| Strip EXIF / location | ✅ Share photo → "Strip EXIF" | (legacy) |
+| Decode QR code | ✅ Share QR image → "Decode QR Code" | `/api/v3/qr/decode` |
+| Compress PDF | ✅ Share PDF → "Compress PDF" | `/api/v3/pdf/compress` |
+| Strip PDF metadata | ✅ Share PDF → "Strip PDF metadata" | `/api/v3/pdf/strip-metadata` |
+| Extract / Delete PDF pages | ✅ Share PDF → presets | `/api/v3/pdf/extract-pages` · `/api/v3/pdf/delete-pages` |
+| Multi-photo → PDF | ⚠ API-only (needs multi-file picker in Shortcut binary) | `/api/v3/pdf/from-photos` |
+| Combine multiple PDFs | ⚠ API-only (same reason) | `/api/v3/pdf/combine` |
+| Combine photos + PDFs | ⚠ API-only (same reason) | `/api/v3/pdf/combine-mixed` |
+| QR code generation | ⚠ API-only (Grabio is share-first; iOS users decode, don't generate) | `/api/v3/qr` |
+
+Full machine-readable contract: [`openapi.yaml`](./openapi.yaml).
 
 ## Operator
 

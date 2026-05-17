@@ -1,17 +1,32 @@
 openapi: 3.0.3
 info:
   title: Grabio Public API
-  version: "2.1.0"
+  version: "3.1.0"
   description: |
     Public HTTPS contract for the Grabio backend at `grabio.adityaarsharma.com`.
 
-    This spec documents the surface that the Apple Shortcut and any
-    privacy-verification tool can rely on. It is the **contract**, not the
-    implementation — the implementation is closed-source for legal-surface
-    reasons (rate-limit logic, billing, abuse prevention).
+    The Apple Shortcut on user iPhones is the primary client. Direct API
+    callers (CI scripts, the privacy verifier, partner integrations) hit the
+    same `/api/v3/*` endpoints with rate limits identical to what the
+    Shortcut sees.
 
-    If you spot a divergence between this spec and live behaviour, that is a
-    bug we want to know about: see [SECURITY.md](./SECURITY.md).
+    **Rate limits — applied to every action, free or pro:**
+      - **IP layer** — 30 requests/minute/IP (sliding window).
+      - **Daily layer** — 5/day per device on the free tier, 30/day per
+        device on Pro. Counter key: `grabio:usage:<sha256-device-hash>:<IST-date>`.
+        Same counter used by both `/v2/run` and `/api/v3/*`, so callers
+        can't accumulate two parallel quotas.
+
+    **Authentication:** None for user-facing endpoints. Device identity
+    is a client-supplied SHA-256 hash of the iOS device name. The hash is
+    never reversed.
+
+    This spec is the **contract**, not the implementation. The implementation
+    is closed-source for legal-surface reasons (rate-limit logic, billing,
+    abuse prevention).
+
+    If you spot a divergence between this spec and live behaviour, that is
+    a bug we want to know about: see [SECURITY.md](./SECURITY.md).
   contact:
     name: Aditya R Sharma
     email: grabio@adityaarsharma.com
@@ -27,299 +42,460 @@ servers:
 tags:
   - name: health
     description: Service liveness + version reporting
-  - name: subscribe
-    description: Email subscription (transactional only)
-  - name: blog
-    description: Headless blog content
+  - name: v3-image
+    description: Photo utilities — resize, compress-to-exact-size, BG fill, image→PDF, QR decode
+  - name: v3-pdf
+    description: PDF utilities — compress, strip metadata, combine, extract/delete pages
+  - name: v3-url
+    description: Webpage utilities — URL → PDF, URL → Image
+  - name: shortcut
+    description: Endpoints called by the Apple Shortcut binary
+  - name: pro
+    description: Polar.sh checkout + webhook for Pro entitlement (device-bound, no email)
   - name: legal
-    description: Static legal pages
+    description: Static legal pages (privacy, terms, refund)
+  - name: blog
+    description: Headless blog content (proxied from WordPress)
 
 paths:
-  /robots.txt:
+  /health:
     get:
-      tags: [legal]
-      summary: Robots policy
+      tags: [health]
+      summary: Liveness probe
       responses:
         '200':
-          description: text/plain robots.txt
+          description: JSON status
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  service: { type: string }
+                  version: { type: string }
+                  backend: { type: string }
+                  redis: { type: boolean }
+                  ffmpeg: { type: boolean }
+                  timestamp: { type: string, format: date-time }
 
-  /sitemap.xml:
-    get:
-      tags: [legal]
-      summary: Sitemap of every public URL on the Grabio domain
-      responses:
-        '200':
-          description: XML sitemap
-          content:
-            application/xml:
-              schema:
-                type: string
-
-  /terms:
-    get:
-      tags: [legal]
-      summary: Terms of Service
-      responses:
-        '200':
-          description: HTML page
-
-  /privacy:
-    get:
-      tags: [legal]
-      summary: Privacy Policy (canonical)
-      responses:
-        '200':
-          description: HTML page
-
-  /refund:
-    get:
-      tags: [legal]
-      summary: Refund Policy
-      responses:
-        '200':
-          description: HTML page
-
-  /subscribe:
+  # ─── v3 IMAGE ENDPOINTS ────────────────────────────────────────────
+  /api/v3/resize:
     post:
-      tags: [subscribe]
-      summary: Subscribe an email address to the Grabio launch newsletter
-      description: |
-        Same-origin POST from grabio.adityaarsharma.com. Includes a Cloudflare
-        Turnstile captcha token + a hidden honeypot field. The honeypot field
-        (`company`) must be empty for a real human; bots that auto-fill all
-        fields will be silently dropped.
-
-        On success the email is added to the operator's Brevo list (ID 9).
-        No other systems receive the address.
+      tags: [v3-image]
+      summary: Resize photo to a social-media preset or custom W×H
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          multipart/form-data:
             schema:
               type: object
-              required: [email, cf-turnstile-response]
+              required: [file]
               properties:
-                email:
+                file:           { type: string, format: binary }
+                device_id:      { type: string, description: "Required for rate-limiting" }
+                preset:
                   type: string
-                  format: email
-                  description: The email address to subscribe.
-                company:
-                  type: string
-                  description: Honeypot — must be empty. Bots fill it and get rejected.
-                  default: ""
-                cf-turnstile-response:
-                  type: string
-                  description: Cloudflare Turnstile token from the embedded widget.
+                  enum:
+                    - instagram-square
+                    - instagram-portrait
+                    - instagram-story
+                    - twitter-post
+                    - twitter-header
+                    - linkedin-post
+                    - facebook-post
+                    - youtube-thumb
+                    - youtube-channel-art
+                    - pinterest-pin
+                    - "4k"
+                    - "2k"
+                    - "1080p"
+                    - "720p"
+                    - "wide"
+                    - "thumbnail"
+                width:          { type: integer, description: "Custom width when preset omitted" }
+                height:         { type: integer }
+                percent:        { type: number, description: "Resize by % when set" }
       responses:
-        '200':
-          description: Subscription accepted.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                    example: true
-        '400':
-          description: Validation error (missing email, bad format, etc.).
-        '403':
-          description: Spam check failed (bad Turnstile token, honeypot filled).
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                    example: false
-                  error:
-                    type: string
-                    example: spam_check_failed
-        '429':
-          description: Rate limit exceeded (per-IP sliding window).
+        '200': { description: image/jpeg }
+        '429': { description: rate-limit hit — see x-ratelimit headers }
 
-  /api/blog/posts:
-    get:
-      tags: [blog]
-      summary: List blog posts (machine-readable mirror of /blog)
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: category
-          in: query
-          description: Filter to one sub-category slug (e.g. grabio-announcements)
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Paginated post list.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                  posts:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/BlogPost'
-                  total:
-                    type: integer
-                  totalPages:
-                    type: integer
-                  categories:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Category'
-
-  /blog:
-    get:
-      tags: [blog]
-      summary: HTML blog index
-      responses:
-        '200':
-          description: HTML page
-
-  /blog/{slug}:
-    get:
-      tags: [blog]
-      summary: HTML single blog post
-      parameters:
-        - name: slug
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: HTML page
-        '404':
-          description: Slug not found
-
-  /blog/category/{slug}:
-    get:
-      tags: [blog]
-      summary: HTML category-filtered blog listing
-      parameters:
-        - name: slug
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: HTML page
-
-  /fonts/{file}:
-    get:
-      tags: [legal]
-      summary: Self-hosted webfonts (Space Grotesk + Inter)
-      parameters:
-        - name: file
-          in: path
-          required: true
-          schema:
-            type: string
-            enum:
-              - space-grotesk-latin.woff2
-              - space-grotesk-latin-ext.woff2
-              - inter-latin.woff2
-              - inter-latin-ext.woff2
-      responses:
-        '200':
-          description: woff2 font file with Cache-Control public, max-age=31536000, immutable
-          content:
-            font/woff2:
-              schema:
-                type: string
-                format: binary
-
-# ---------------------------------------------------------------------------
-# The Shortcut <-> backend protocol (compress / convert / PDF / BG / QR /
-# privacy strip) is intentionally NOT documented in this public spec.
-# Those endpoints are device-attested and reserved for the official Shortcut.
-# Third parties should not attempt to call them — they will be rate-limited
-# and may be blocked at the Cloudflare edge.
-#
-# Note: as of v2.1.0 (2026-05-17), Grabio no longer supports downloading
-# media from third-party URLs. The /download endpoint returns 410 Gone.
-# ---------------------------------------------------------------------------
-
-components:
-  schemas:
-    BlogPost:
-      type: object
-      properties:
-        id:
-          type: integer
-        slug:
-          type: string
-        title:
-          type: string
-        excerpt:
-          type: string
+  /api/v3/bg-fill:
+    post:
+      tags: [v3-image]
+      summary: Flatten transparent image with a solid background colour
+      requestBody:
+        required: true
         content:
-          type: string
-          nullable: true
-          description: HTML content, only populated on single-post fetch.
-        date:
-          type: string
-          format: date-time
-        modified:
-          type: string
-          format: date-time
-        link:
-          type: string
-          format: uri
-          description: WordPress permalink (CMS-of-record on adityaarsharma.com).
-        author:
-          type: object
-          properties:
-            name:
-              type: string
-            slug:
-              type: string
-            avatar:
-              type: string
-              format: uri
-        featured:
-          type: object
-          nullable: true
-          properties:
-            url:
-              type: string
-              format: uri
-            alt:
-              type: string
-        categories:
-          type: array
-          items:
-            $ref: '#/components/schemas/Category'
-        reading_minutes:
-          type: integer
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:      { type: string, format: binary }
+                color:     { type: string, default: "white", description: "white | black | #hex" }
+                device_id: { type: string }
+      responses:
+        '200': { description: image/jpeg }
 
-    Category:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        slug:
-          type: string
-        description:
-          type: string
-        count:
-          type: integer
+  /api/v3/compress-exact:
+    post:
+      tags: [v3-image]
+      summary: Compress photo to a target KB (±8%) via iterative quality search
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, target_kb]
+              properties:
+                file:      { type: string, format: binary }
+                target_kb: { type: integer, description: "Target size in kilobytes" }
+                device_id: { type: string }
+      responses:
+        '200': { description: image/jpeg }
 
-  securitySchemes: {}
+  /api/v3/qr:
+    post:
+      tags: [v3-image]
+      summary: Generate a QR code PNG (programmatic API only — iOS users use qr-decode)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:      { type: string, maxLength: 2000 }
+                size:      { type: integer, default: 512, minimum: 128, maximum: 2048 }
+                device_id: { type: string }
+      responses:
+        '200': { description: image/png }
+
+  /api/v3/qr/decode:
+    post:
+      tags: [v3-image]
+      summary: Decode a QR code from an uploaded image
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:      { type: string, format: binary, description: "Image containing a QR code" }
+                device_id: { type: string }
+      responses:
+        '200':
+          description: JSON with decoded text
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:     { type: boolean }
+                  found:  { type: boolean }
+                  text:   { type: string, nullable: true }
+                  is_url: { type: boolean }
+
+  # ─── v3 PDF ENDPOINTS ──────────────────────────────────────────────
+  /api/v3/pdf/from-photo:
+    post:
+      tags: [v3-pdf]
+      summary: Convert a single photo to a one-page PDF
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:      { type: string, format: binary }
+                page_size: { type: string, enum: [auto, A4, Letter], default: auto }
+                device_id: { type: string }
+      responses:
+        '200': { description: application/pdf }
+
+  /api/v3/pdf/from-photos:
+    post:
+      tags: [v3-pdf]
+      summary: Combine up to 25 photos into a single PDF
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:     { type: array, items: { type: string, format: binary }, maxItems: 25 }
+                page_size: { type: string, enum: [auto, A4, Letter], default: auto }
+                device_id: { type: string }
+      responses:
+        '200': { description: application/pdf }
+
+  /api/v3/pdf/combine:
+    post:
+      tags: [v3-pdf]
+      summary: Merge multiple PDFs into one
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:     { type: array, items: { type: string, format: binary }, minItems: 2, maxItems: 25 }
+                device_id: { type: string }
+      responses:
+        '200': { description: application/pdf }
+
+  /api/v3/pdf/combine-mixed:
+    post:
+      tags: [v3-pdf]
+      summary: Combine photos + PDFs into one PDF (photos auto-converted)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:     { type: array, items: { type: string, format: binary }, minItems: 2, maxItems: 25 }
+                device_id: { type: string }
+      responses:
+        '200': { description: application/pdf }
+
+  /api/v3/pdf/extract-pages:
+    post:
+      tags: [v3-pdf]
+      summary: Extract specific pages from a PDF (spec like "1,3,5-7")
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, pages]
+              properties:
+                file:      { type: string, format: binary }
+                pages:     { type: string, example: "1,3,5-7" }
+                device_id: { type: string }
+      responses:
+        '200': { description: application/pdf }
+
+  /api/v3/pdf/delete-pages:
+    post:
+      tags: [v3-pdf]
+      summary: Delete pages, keep the rest
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, pages]
+              properties:
+                file:      { type: string, format: binary }
+                pages:     { type: string, example: "1,5-7" }
+                device_id: { type: string }
+      responses:
+        '200': { description: application/pdf }
+
+  /api/v3/pdf/compress:
+    post:
+      tags: [v3-pdf]
+      summary: Compress a PDF (Ghostscript-driven)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:      { type: string, format: binary }
+                profile:   { type: string, enum: [screen, ebook, printer, prepress], default: screen }
+                device_id: { type: string }
+      responses:
+        '200': { description: application/pdf }
+
+  /api/v3/pdf/strip-metadata:
+    post:
+      tags: [v3-pdf]
+      summary: Strip author/title/producer metadata from a PDF
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:      { type: string, format: binary }
+                device_id: { type: string }
+      responses:
+        '200': { description: application/pdf }
+
+  # ─── v3 URL ENDPOINTS ──────────────────────────────────────────────
+  /api/v3/url/to-pdf:
+    post:
+      tags: [v3-url]
+      summary: Render a webpage to PDF (A4, headless Chrome)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:       { type: string, format: uri }
+                device_id: { type: string }
+      responses:
+        '200': { description: application/pdf }
+
+  /api/v3/url/to-image:
+    post:
+      tags: [v3-url]
+      summary: Render a full-page screenshot of a webpage (PNG)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:       { type: string, format: uri }
+                full_page: { type: boolean, default: true }
+                device_id: { type: string }
+      responses:
+        '200': { description: image/png }
+
+  # ─── SHORTCUT BINARY ENDPOINTS ─────────────────────────────────────
+  /v2/menu:
+    post:
+      tags: [shortcut]
+      summary: Decide what kind of input was shared (image, video, audio, pdf, url-direct, url-social) and return the option submenu the Shortcut should show
+      description: |
+        The Shortcut binary calls this on every share. The server replies with:
+          - `kind: welcome` on first run (one-time welcome card)
+          - `kind: image` / `video` / `audio` / `pdf` with the submenu options
+          - `kind: url` with Save-as-PDF / Save-as-Image / Copy-link options
+            (when a non-social URL is shared)
+          - `kind: feature-info` (the v3 pitch) when a social URL is shared
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                device_id:        { type: string }
+                shortcut_version: { type: string }
+                input_text:       { type: string, description: "URL or text shared" }
+                file_ext:         { type: string }
+                hint:             { type: string, description: "iOS source-type hint" }
+                media:            { type: string }
+      responses:
+        '200': { description: Menu payload }
+
+  /v2/run:
+    post:
+      tags: [shortcut]
+      summary: Execute the chosen submenu option against the shared content
+      description: |
+        Same Free/Pro gate as `/api/v3/*`. Accepts base64-encoded file via
+        `input_b64` or a URL via `source_url`. Returns either a result file
+        URL (`file_url`), a kind:menu picker for further selection, or an
+        error.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [option_id]
+              properties:
+                device_id:  { type: string }
+                option_id:  { type: string, example: "img-to-pdf" }
+                input_b64:  { type: string, description: "Base64-encoded file bytes" }
+                source_url: { type: string, format: uri }
+                file_ext:   { type: string }
+                session_id: { type: string }
+      responses:
+        '200': { description: Result file URL or follow-up menu }
+        '429': { description: rate-limit }
+
+  /v2/result/{token}:
+    get:
+      tags: [shortcut]
+      summary: Fetch a processed result file (1-hour TTL)
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Binary content with proper Content-Type }
+        '404': { description: Token unknown or expired }
+
+  /subscribe:
+    post:
+      tags: [shortcut]
+      summary: Email subscription (RETIRED in v3 — returns 410 Gone)
+      description: |
+        v3 dropped Brevo and all email collection. This endpoint returns
+        `410 Gone` for any submission. Documented so that any old client
+        polling it gets a clean signal that the feature has been removed.
+      responses:
+        '410': { description: feature_removed }
+
+  # ─── PRO / POLAR ───────────────────────────────────────────────────
+  /pro/checkout/{plan}:
+    get:
+      tags: [pro]
+      summary: Redirect to Polar checkout, passing device_id as metadata
+      description: |
+        The Shortcut opens this URL with `?device_id=<hash>`. Server passes
+        `metadata.device_id` through to Polar. On successful purchase,
+        Polar webhook binds Pro entitlement to that device hash directly.
+        **No email is stored on Grabio's server.**
+      parameters:
+        - { name: plan, in: path, required: true, schema: { type: string, enum: [monthly] } }
+        - { name: device_id, in: query, schema: { type: string } }
+      responses:
+        '302': { description: Redirect to Polar }
+
+  /pro/success:
+    get:
+      tags: [pro]
+      summary: Post-checkout landing page (HTML)
+      description: |
+        On iPhone: shows "Pro is active on this iPhone" once the webhook
+        has bound the entitlement. On desktop: shows "open this on your
+        iPhone or email us your Polar receipt".
+      responses:
+        '200': { description: HTML page }
+
+  /pro/webhook-polar:
+    post:
+      tags: [pro]
+      summary: Polar webhook (Standard Webhooks HMAC-SHA256 verified)
+      description: |
+        Body verified via `webhook-id.webhook-timestamp.body` signature.
+        On `subscription.created` / `benefit_granted`, reads
+        `data.metadata.device_id` and binds Pro to that device.
+      responses:
+        '200': { description: ok }
+        '401': { description: bad signature }
+
+  # ─── LEGAL ─────────────────────────────────────────────────────────
+  /privacy:    { get: { tags: [legal], summary: Privacy Policy, responses: { '200': { description: HTML } } } }
+  /terms:      { get: { tags: [legal], summary: Terms of Service, responses: { '200': { description: HTML } } } }
+  /refund:     { get: { tags: [legal], summary: Refund Policy, responses: { '200': { description: HTML } } } }
+  /robots.txt: { get: { tags: [legal], summary: Robots policy, responses: { '200': { description: text/plain } } } }
+  /sitemap.xml: { get: { tags: [legal], summary: Sitemap, responses: { '200': { description: XML } } } }
