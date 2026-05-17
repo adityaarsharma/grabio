@@ -4,6 +4,27 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
+## [3.1.0] — 2026-05-17
+
+### Added — sharing-first UX
+
+Every feature is now reachable from the iOS share sheet. No text-input or paste flows.
+
+- **Share a webpage URL → /v2/menu returns "Save as PDF / Save as Image / Copy link"**. New `url-to-pdf-share` and `url-to-image-share` option_ids in `/v2/run` produce a clean PDF (puppeteer A4) or a full-page PNG screenshot.
+- **Share a QR code image → "🔳 Decode QR Code" appears in image submenu**. Server runs `sharp` + `jsqr` to extract the text. If the QR contains a URL, the response includes `open_url` so the Shortcut can offer to open it.
+- New `/api/v3/qr/decode` endpoint (multipart image upload → `{found, text, is_url}` JSON).
+
+### Changed
+
+- Image submenu now has **9 options** (was 8): added 🔳 Decode QR Code.
+- URL-direct (any non-social webpage) no longer shows the v3 pitch — it now goes straight to the Save-as menu.
+- URL-social (TikTok / IG / YouTube / Facebook) still shows the pitch — social downloads remain retired in v3.
+- Landing page copy updated: "QR Generator" → "Decode QR Code", URL feature card now reads "Share webpage → PDF/Screenshot" instead of marketing speak.
+
+### Why
+
+Apple Shortcuts are great because the share sheet is the entry point. Asking users to type or paste defeats the point. Every claimed feature on the landing page must be invokable by "Share → Grabio" with zero typing.
+
 ## [3.0.0] — 2026-05-17
 
 ### Added
