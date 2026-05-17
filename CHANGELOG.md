@@ -4,6 +4,44 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
+## [3.2.1] — 2026-05-17
+
+### Fixed — **Critical webhook bug found during launch audit**
+
+`UPLOAD_PATHS` regex matched `/pro/webhook` but **not** `/pro/webhook-polar`
+(the `-` after `webhook` broke the suffix). Consequence: the global
+`smallJson` body parser consumed the raw request body before
+`express.raw()` could read it inside the route handler. Every real Polar
+webhook would have computed an HMAC over an empty body and returned
+`401 invalid_signature`.
+
+This means **no Pro purchase has ever auto-activated via webhook in v3**.
+The /pro/success desktop fallback was the only path users could rely on
+(emailing the operator with a Polar receipt).
+
+After fix:
+- Localhost simulation: webhook 200, `grabio:pro:<hash>` written, Brevo enrolled
+- Public URL simulation (Cloudflare → nginx → Node): same — 200, Pro bound,
+  TTL = subscription + 35-day grace
+- Logs confirm `[polar-webhook] event=subscription.created` +
+  `[brevo-pro] enrolled <email>`
+
+### Other clean-up in this audit
+
+- Legacy v2 `pro-redeem-<token>` activation flow neutralized — returns a
+  friendly v3 redirect instead of confusing 410 (in case anyone has an old
+  email-link bookmark).
+- Removed the dead `grabio:pro_redeem:<token>` mint from the webhook
+  handler (writer prefix never matched the reader's `grabio:activation:`
+  prefix — structurally dead since v3.0.0).
+
+### Landing page polish
+
+- Hero image swapped to the Step-1 Adding-Shortcut screenshot.
+- Step-3 image placeholder hidden (pending real screenshot upload).
+- "See it in action" demo video section commented out (pending new v3
+  recording).
+
 ## [3.2.0] — 2026-05-17
 
 ### Added — Pro onboarding via Brevo
