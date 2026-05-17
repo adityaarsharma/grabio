@@ -33,13 +33,27 @@ The Shortcut is distributed via iCloud (no App Store needed). One tap, no sign-u
 
 ## What you'll find in this repo
 
-| File | What it covers |
+| File / dir | What it covers |
 |---|---|
-| [`PRIVACY.md`](./PRIVACY.md) | Architecture, data flow diagrams, retention table, GDPR rights, subprocessors |
-| [`SECURITY.md`](./SECURITY.md) | Responsible disclosure, how to report a vulnerability |
+| [`PRIVACY.md`](./PRIVACY.md) | Architecture, data-flow diagrams, retention table, GDPR rights, subprocessors |
 | [`ARCHITECTURE.md`](./ARCHITECTURE.md) | How the Shortcut, the backend, and the Redis layer fit together |
+| [`SECURITY.md`](./SECURITY.md) | Responsible disclosure — how to report a vulnerability |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Public release history |
+| [`openapi.yaml`](./openapi.yaml) | Machine-readable contract for every public endpoint |
+| [`verify/`](./verify) | **Runnable Node CLI** that mechanically validates every privacy claim against the live host |
+| [`reference/`](./reference) | MIT-licensed reference modules (device hashing, TTL janitor, sliding-window rate limiter, bot-resistant subscribe) |
 | [`.github/ISSUE_TEMPLATE/`](./.github/ISSUE_TEMPLATE) | Templates for bugs, feature requests, privacy questions |
+
+### Run the privacy verifier
+
+You don't have to take the docs at face value. Clone this repo and run:
+
+```bash
+cd verify
+node verify-privacy.js
+```
+
+It hits the live host and checks 15+ claims (no cookies, no trackers, self-hosted fonts, rate-limit headers, JSON-LD on legal pages, sitemap exclusions, HSTS, etc.). Exits 0 if all pass, 1 if any fail. Anything that fails is a [SECURITY.md](./SECURITY.md) report waiting to happen.
 
 ## Why open this up
 

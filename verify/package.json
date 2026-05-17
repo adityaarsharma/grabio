@@ -1,0 +1,21 @@
+{
+  "name": "grabio-verify-privacy",
+  "version": "1.0.0",
+  "description": "Mechanically verifies every privacy claim Grabio makes on grabio.adityaarsharma.com.",
+  "main": "verify-privacy.js",
+  "type": "module",
+  "scripts": {
+    "start": "node verify-privacy.js",
+    "verify": "node verify-privacy.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT",
+  "author": "Aditya R Sharma <grabio@adityaarsharma.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adityaarsharma/grabio"
+  },
+  "dependencies": {}
+}

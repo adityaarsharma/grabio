@@ -1,0 +1,322 @@
+openapi: 3.0.3
+info:
+  title: Grabio Public API
+  version: "2.0.2"
+  description: |
+    Public HTTPS contract for the Grabio backend at `grabio.adityaarsharma.com`.
+
+    This spec documents the surface that the Apple Shortcut and any
+    privacy-verification tool can rely on. It is the **contract**, not the
+    implementation — the implementation is closed-source for legal-surface
+    reasons (rate-limit logic, billing, abuse prevention).
+
+    If you spot a divergence between this spec and live behaviour, that is a
+    bug we want to know about: see [SECURITY.md](./SECURITY.md).
+  contact:
+    name: Aditya R Sharma
+    email: grabio@adityaarsharma.com
+    url: https://grabio.adityaarsharma.com
+  license:
+    name: Documentation MIT
+    url: https://github.com/adityaarsharma/grabio/blob/main/LICENSE
+
+servers:
+  - url: https://grabio.adityaarsharma.com
+    description: Production
+
+tags:
+  - name: health
+    description: Service liveness + version reporting
+  - name: subscribe
+    description: Email subscription (transactional only)
+  - name: blog
+    description: Headless blog content
+  - name: legal
+    description: Static legal pages
+
+paths:
+  /robots.txt:
+    get:
+      tags: [legal]
+      summary: Robots policy
+      responses:
+        '200':
+          description: text/plain robots.txt
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /sitemap.xml:
+    get:
+      tags: [legal]
+      summary: Sitemap of every public URL on the Grabio domain
+      responses:
+        '200':
+          description: XML sitemap
+          content:
+            application/xml:
+              schema:
+                type: string
+
+  /terms:
+    get:
+      tags: [legal]
+      summary: Terms of Service
+      responses:
+        '200':
+          description: HTML page
+
+  /privacy:
+    get:
+      tags: [legal]
+      summary: Privacy Policy (canonical)
+      responses:
+        '200':
+          description: HTML page
+
+  /refund:
+    get:
+      tags: [legal]
+      summary: Refund Policy
+      responses:
+        '200':
+          description: HTML page
+
+  /subscribe:
+    post:
+      tags: [subscribe]
+      summary: Subscribe an email address to the Grabio launch newsletter
+      description: |
+        Same-origin POST from grabio.adityaarsharma.com. Includes a Cloudflare
+        Turnstile captcha token + a hidden honeypot field. The honeypot field
+        (`company`) must be empty for a real human; bots that auto-fill all
+        fields will be silently dropped.
+
+        On success the email is added to the operator's Brevo list (ID 9).
+        No other systems receive the address.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [email, cf-turnstile-response]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: The email address to subscribe.
+                company:
+                  type: string
+                  description: Honeypot — must be empty. Bots fill it and get rejected.
+                  default: ""
+                cf-turnstile-response:
+                  type: string
+                  description: Cloudflare Turnstile token from the embedded widget.
+      responses:
+        '200':
+          description: Subscription accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error (missing email, bad format, etc.).
+        '403':
+          description: Spam check failed (bad Turnstile token, honeypot filled).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: spam_check_failed
+        '429':
+          description: Rate limit exceeded (per-IP sliding window).
+
+  /api/blog/posts:
+    get:
+      tags: [blog]
+      summary: List blog posts (machine-readable mirror of /blog)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: category
+          in: query
+          description: Filter to one sub-category slug (e.g. grabio-announcements)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated post list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  posts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlogPost'
+                  total:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  categories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+
+  /blog:
+    get:
+      tags: [blog]
+      summary: HTML blog index
+      responses:
+        '200':
+          description: HTML page
+
+  /blog/{slug}:
+    get:
+      tags: [blog]
+      summary: HTML single blog post
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: HTML page
+        '404':
+          description: Slug not found
+
+  /blog/category/{slug}:
+    get:
+      tags: [blog]
+      summary: HTML category-filtered blog listing
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: HTML page
+
+  /fonts/{file}:
+    get:
+      tags: [legal]
+      summary: Self-hosted webfonts (Space Grotesk + Inter)
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - space-grotesk-latin.woff2
+              - space-grotesk-latin-ext.woff2
+              - inter-latin.woff2
+              - inter-latin-ext.woff2
+      responses:
+        '200':
+          description: woff2 font file with Cache-Control public, max-age=31536000, immutable
+          content:
+            font/woff2:
+              schema:
+                type: string
+                format: binary
+
+# ---------------------------------------------------------------------------
+# The Shortcut <-> backend protocol (compress / convert / PDF / BG / QR /
+# privacy strip / URL→X) is intentionally NOT documented in this public spec.
+# Those endpoints are device-attested and reserved for the official Shortcut.
+# Third parties should not attempt to call them — they will be rate-limited
+# and may be blocked at the Cloudflare edge.
+# ---------------------------------------------------------------------------
+
+components:
+  schemas:
+    BlogPost:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        title:
+          type: string
+        excerpt:
+          type: string
+        content:
+          type: string
+          nullable: true
+          description: HTML content, only populated on single-post fetch.
+        date:
+          type: string
+          format: date-time
+        modified:
+          type: string
+          format: date-time
+        link:
+          type: string
+          format: uri
+          description: WordPress permalink (CMS-of-record on adityaarsharma.com).
+        author:
+          type: object
+          properties:
+            name:
+              type: string
+            slug:
+              type: string
+            avatar:
+              type: string
+              format: uri
+        featured:
+          type: object
+          nullable: true
+          properties:
+            url:
+              type: string
+              format: uri
+            alt:
+              type: string
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        reading_minutes:
+          type: integer
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        count:
+          type: integer
+
+  securitySchemes: {}
