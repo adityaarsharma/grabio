@@ -6,8 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semv
 
 ## [Unreleased]
 
-- v3 — 23 file utilities across compress / convert / PDF / photo / privacy / URL → X
+- v3 — 22 file utilities across compress / convert / PDF / photo / privacy / URL → file
 - Open-source transparency repo (this one)
+
+## [2.1.0] — 2026-05-17
+
+### Removed
+
+- **URL Save Media (social media downloader)** — permanently removed from Grabio. The feature was always hidden under Advanced and never marketed, but it created legal and payment-processor risk that no longer fits Grabio's strategy. Grabio is now exclusively a file-utilities tool: compress, convert, PDF, background remove, QR, privacy strip. All payment processors and merchant-of-record platforms now treat Grabio as low-risk SaaS.
+
+### Changed
+
+- `/download` endpoint now returns 410 Gone with a "feature removed, update Grabio" message
+- `/v2/menu` rejects any social-platform URL with the same message
+- `/health` no longer advertises the third-party media backend
+- Welcome prompt reframed from "Download · Convert · Resize" to "Compress · Convert · PDF · BG Remove"
+- Privacy policy subprocessor table dropped the "Third-party media API" row
+- Terms §5 dropped the neutral-conduit / user-supplied-URL language
+
+### Why
+
+Decision D-79: Going fully legal to enable clean payment processing on Polar.sh or any mainstream MoR. Trades 1 niche feature for unrestricted growth runway.
 
 ## [2.0.2] — 2026-05-15
 

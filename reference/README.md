@@ -19,7 +19,7 @@ Three reasons:
 
 2. **They're useful to other devs.** Every indie SaaS needs a rate limiter, a janitor, and a bot-resistant signup form. These work, and they're the smallest reasonable implementations.
 
-3. **They cost us nothing.** None of these expose business logic, none reveal the Grabio backend's specifics, and none are tied to the FastSaver / shipping code surface.
+3. **They cost us nothing.** None of these expose business logic, and none reveal the Grabio backend's specifics — they're pure privacy patterns.
 
 ## Usage
 

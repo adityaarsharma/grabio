@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Grabio Public API
-  version: "2.0.2"
+  version: "2.1.0"
   description: |
     Public HTTPS contract for the Grabio backend at `grabio.adityaarsharma.com`.
 
@@ -246,10 +246,13 @@ paths:
 
 # ---------------------------------------------------------------------------
 # The Shortcut <-> backend protocol (compress / convert / PDF / BG / QR /
-# privacy strip / URL→X) is intentionally NOT documented in this public spec.
+# privacy strip) is intentionally NOT documented in this public spec.
 # Those endpoints are device-attested and reserved for the official Shortcut.
 # Third parties should not attempt to call them — they will be rate-limited
 # and may be blocked at the Cloudflare edge.
+#
+# Note: as of v2.1.0 (2026-05-17), Grabio no longer supports downloading
+# media from third-party URLs. The /download endpoint returns 410 Gone.
 # ---------------------------------------------------------------------------
 
 components:

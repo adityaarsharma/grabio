@@ -38,7 +38,6 @@ We use the smallest possible set of third-party services that touch any Grabio d
 | Plausible (self-hosted) | Germany | Aggregate page-view analytics | No personal data; aggregate counts only |
 | Brevo | France (EU) | Transactional email (license delivery) | Pro user email + license key |
 | Polar.sh **or** DodoPayments | United States | Payment processing for Pro | Email + card data (we never see card numbers) |
-| Third-party media API | United States | Powers the optional URL Save Media feature | The public URL you submit; no user identifier |
 | Cloudflare | United States | DNS for grabio.adityaarsharma.com | Inferred IP at DNS resolution (not stored by us) |
 | Apple iCloud | International | Distributes the Shortcut binary | Anonymous to us; Apple's terms apply |
 

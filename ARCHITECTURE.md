@@ -89,7 +89,7 @@ We're choosing option 3 every time. Anything that requires persistent user data 
 
 - The Express server source (`index.js`)
 - The Apple Shortcut binary
-- Any code that calls third-party media APIs
+- Any code that previously called third-party media APIs (the feature was removed 2026-05-17 — see CHANGELOG)
 - API keys, env files, secrets
 
 The repo's purpose is **transparency about privacy**, not reproducible builds. The shipping product is closed-source for legal-surface reasons (rate-limit logic, billing, abuse prevention). If you need to verify a specific privacy claim against real behaviour, run an HTTPS inspector on your iPhone (Charles Proxy works well) and watch the wire.

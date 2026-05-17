@@ -1,6 +1,6 @@
 # Grabio
 
-> **The iPhone utility toolkit. One Apple Shortcut. 23 file utilities. No app, no signup, no tracking.**
+> **The iPhone utility toolkit. One Apple Shortcut. 22 file utilities. No app, no signup, no tracking.**
 
 [![Website](https://img.shields.io/badge/website-grabio.adityaarsharma.com-ea580c?style=flat-square)](https://grabio.adityaarsharma.com)
 [![Privacy](https://img.shields.io/badge/privacy-first-16a34a?style=flat-square)](./PRIVACY.md)
@@ -21,7 +21,7 @@ The Shortcut is distributed via iCloud (no App Store needed). One tap, no sign-u
 
 | | |
 |---|---|
-| **What it is** | An iOS 14+ Apple Shortcut that adds 23 file utilities to your iPhone share sheet |
+| **What it is** | An iOS 14+ Apple Shortcut that adds 22 file utilities to your iPhone share sheet |
 | **What it does** | Compress, convert, PDF tools, background remove, QR codes, photo resize, format conversion, privacy stripping |
 | **Free tier** | 5 actions/day, every utility, forever |
 | **Pro tier** | $3/month → 30 actions/day. 7-day refund, no questions. |
