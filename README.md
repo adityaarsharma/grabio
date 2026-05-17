@@ -26,7 +26,7 @@ The Shortcut is distributed via iCloud (no App Store needed). One tap, no sign-u
 | **Free tier** | 5 actions/day, every utility, forever |
 | **Pro tier** | $3/month → 30 actions/day. 7-day refund, no questions. |
 | **Where it runs** | Backend on Hetzner Online GmbH, Germany (EU). Files processed in memory or in a permission-locked temp folder. |
-| **What it collects** | SHA-256 hash of your iOS device identifier (rate-limit only). Pro users: email + license key. **No name, no phone, no IP stored long-term.** |
+| **What it collects** | SHA-256 hash of your iOS device identifier (rate-limit + Pro binding). **No email stored — Pro purchase emails live at Polar.sh (Merchant of Record), not Grabio.** No name, no phone, no IP stored long-term. |
 | **What it retains** | Device hash: 30 days rolling · daily counter: 48h · files: ≤1 hour · request logs: 24h |
 | **Trackers** | **None.** No Google Analytics, no Facebook Pixel, no third-party ad SDKs. Plausible (self-hosted) for aggregate page views only. |
 | **License** | Documentation in this repo: MIT. The Apple Shortcut itself is closed-source. |
@@ -74,7 +74,7 @@ You can:
 4. The backend processes the file in memory (compress, convert, etc.) and returns the result.
 5. The result lands back in Photos or Files. The original file on the server is deleted within 1 hour.
 
-No account, no email, no telemetry. The backend's database is a row of integers (`hash:date = count`) for rate-limiting. That's it.
+No account, no email collected on Grabio's side, no telemetry. The backend's database is a row of integers (`hash:date = count`) for rate-limiting and a single Pro-entitlement key per device. That's it. If you buy Pro, your email goes to Polar (our payment processor) — never to Grabio's server.
 
 ## Operator
 

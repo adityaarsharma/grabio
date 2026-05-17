@@ -4,10 +4,42 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
-## [Unreleased]
+## [3.0.0] — 2026-05-17
 
-- v3 — 22 file utilities across compress / convert / PDF / photo / privacy / URL → file
-- Open-source transparency repo (this one)
+### Added
+
+Ten new file-utility endpoints, all rate-limited (5/day free, 30/day Pro):
+
+- `POST /api/v3/resize` — Photo resize with 16 social-media presets (instagram-square, twitter-post, youtube-thumb, 4K, 1080p, etc.), plus custom width×height and percent modes.
+- `POST /api/v3/bg-fill` — Flatten transparent images with white/black/hex background fill.
+- `POST /api/v3/compress-exact` — Compress to an exact target KB ±8% via iterative JPEG quality binary search.
+- `POST /api/v3/pdf/from-photo` — Single photo → PDF (auto, A4, or Letter sizing).
+- `POST /api/v3/pdf/from-photos` — Multi-photo → combined PDF (up to 25 photos).
+- `POST /api/v3/pdf/combine` — Merge multiple PDFs into one.
+- `POST /api/v3/pdf/extract-pages` — Extract pages by spec like `1,3,5-7`.
+- `POST /api/v3/pdf/delete-pages` — Drop pages, keep the rest.
+- `POST /api/v3/pdf/compress` — Ghostscript-driven PDF compression with screen/ebook/printer/prepress profiles.
+- `POST /api/v3/url/to-pdf` — Render any webpage to PDF via Puppeteer + headless Chrome.
+
+Plus the existing `POST /api/v3/qr` (QR code PNG generator).
+
+### Changed — Privacy architecture (major)
+
+- **Dropped Brevo (transactional email provider) entirely.** Grabio now sends zero emails. The previous "license key emailed on purchase" flow is gone.
+- **Pro entitlement is now device-bound at purchase time.** Polar checkout receives `metadata.device_id` (your iPhone's SHA-256 hash). The Polar webhook writes a single Redis key — `grabio:pro:<hash>` — and unlock is instant on next API call. **No email is stored on Grabio's server.**
+- **Removed all email-collection surfaces.** The landing-page email-subscribe form is gone. The `/subscribe` endpoint returns `410 Gone`. The PRIVACY.md "Email (Pro only)" row is replaced with "Polar subscription ID + device hash binding".
+- **New `/admin/api/rebind` endpoint** lets the operator move a Pro entitlement to a new iPhone manually (used when users contact support after device replacement). Replaces the old "email the license key" recovery flow.
+- **`/pro/success`** now shows two paths: iPhone visitors see "✨ Pro is active on this iPhone"; desktop visitors see a "📱 open this on your iPhone or email us your Polar receipt" fallback.
+
+### Removed
+
+- Brevo subprocessor (was in PRIVACY subprocessor table).
+- All `sendActivationEmail()` calls in the Polar webhook (neutralized to no-ops).
+- The email-collection section of the landing page.
+
+### Why
+
+Architecture reset: Polar is a Merchant of Record, so it already holds the buyer's email and handles the receipt. Storing that email a second time on Grabio's server only adds breach surface for zero user benefit. The device-bound model means the worst-case breach reveals zero personal data — there is no `email` column anywhere in Redis.
 
 ## [2.1.0] — 2026-05-17
 

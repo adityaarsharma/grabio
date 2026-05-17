@@ -32,12 +32,12 @@ The Shortcut never writes anything to Redis directly. The backend is the only wr
 
 ```
 grabio:usage:<sha256-device-hash>:YYYY-MM-DD   String (int) — daily action count   TTL: 48h
-grabio:pro:<sha256-device-hash>                String (epoch) — Pro expiry         TTL: matches subscription
-grabio:license:<key>                           Hash — { email_hash, activated_at } TTL: subscription + 1y
+grabio:pro:<sha256-device-hash>                JSON — { polar_subscription_id,
+                                                       expires_at, source }         TTL: subscription + 35d grace
 grabio:metrics:*:YYYY-MM-DD                    String/HLL — aggregate counters     TTL: 30d
 ```
 
-That's the full surface. No file content, no URLs, no IPs, no real emails, no device names — only their SHA-256 hashes.
+That's the full surface. **No email column anywhere.** No file content, no URLs, no IPs, no real emails, no device names — only their SHA-256 hashes. Pro purchase emails sit with Polar (Merchant of Record), never on Grabio's server.
 
 ## Why we can't see your files
 
