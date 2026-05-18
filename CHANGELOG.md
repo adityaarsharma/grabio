@@ -4,6 +4,34 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
+## [3.3.5] — 2026-05-18
+
+### Added — share-text translation via MyMemory free API
+
+Text menu expanded from 2 options to 3:
+- 🔳 Generate QR code from this text
+- **🌐 Translate this text** *(new)*
+- 📋 Just copy the text
+
+Picking Translate opens a submenu of 5 target languages:
+- 🇬🇧 English  ·  🇮🇳 Hindi  ·  🇪🇸 Spanish  ·  🇦🇪 Arabic  ·  🇫🇷 French
+
+Backend: free MyMemory API (`api.mymemory.translated.net/get`). No API key,
+no signup, 10,000 words/day per server IP (~200 translations on a busy day).
+Source language auto-detected. HTML entities (&#39;, &amp;, etc.) decoded
+before returning so the user gets clean text.
+
+Server returns translated text in both `detail` and `clipboard` fields so the
+Shortcut can show it AND copy to clipboard in one step. Rate-limited under
+the same Free 5/day · Pro 30/day daily cap. Per-language counter tracked as
+`grabio:metrics:action:text-translate-<lang>`.
+
+Verified end-to-end with real MyMemory calls:
+- EN→HI: "Hello, how are you today?" → "नमस्ते, आज आप कैसे हैं?"
+- HI→EN: "नमस्ते, आप कैसे हैं?" → "Hi, How are you?"
+- EN→ES: "What time does the store open tomorrow?" → "¿A qué hora abre la tienda mañana?"
+- EN→AR: "Thank you for your help" → "شكرًا لك على مساعدتك"
+
 ## [3.3.4] — 2026-05-18
 
 ### Fixed — WhatsApp text STILL misclassified after v3.3.2 (real-world iPhone payload)
