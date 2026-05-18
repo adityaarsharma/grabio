@@ -4,6 +4,67 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
+## [3.3.1] — 2026-05-18
+
+### Added — desktop checkout → QR-scan bind flow
+
+Pro users can now buy from any device. Previously only iPhone-initiated checkouts
+(where the Shortcut passed `metadata.device_id`) bound Pro automatically — desktop
+purchases required a manual email rebind.
+
+- **Server**: when the Polar webhook fires without `metadata.device_id`, server mints
+  a `bind_token` (24-hex, 30-day TTL) and maps both `subscription_id` and `checkout_id`
+  to the token in Redis.
+- **`/pro/success`**: detects desktop checkout (no device tag in metadata) and renders
+  a QR code (PNG, 320×320, errorCorrection M) encoding `https://grabio.adityaarsharma.com/r/<token>`.
+- **`/r/<token>`**: UA-detected redemption page. iPhone Safari sees an "⚡ Activate Pro now"
+  button using `shortcuts://run-shortcut?name=Grabio&input=text&text=<activation URL>`.
+  Desktop UA sees "open this on your iPhone".
+- **`/v2/menu`**: detects the `/r/<token>` URL pattern in `input_text` and calls
+  `bindProToDevice(this iPhone's device_id)`, burns the token, returns success alert.
+- **No Shortcut binary update required** — existing iPhones running the v3 binary
+  already pass any text input to `/v2/menu`. Server-side URL pattern detection does
+  the rest.
+
+### Fixed — critical refund/cancel bug
+
+`subscription.canceled` / `subscription.revoked` / `order.refunded` handler only
+revoked Pro via `grabio:license_devices:<license>` — a **v2 legacy path**. In v3
+Pro is bound by `metadata.device_id` with no license, so the revoke silently did
+nothing. **Net effect: refunded customers would keep Pro forever.**
+
+Fix: handler now revokes through 3 paths:
+1. License-key path (v2 back-compat)
+2. `grabio:polar_customer_devices:<customer_id>` (v3 — reverse index already maintained at bind time)
+3. `data.metadata.device_id` direct hash (v3 metadata fallback)
+
+### Added — webhook hardening
+
+- **`benefit_grant.cycled`** handler — extends Pro TTL on monthly recurring benefit
+  re-issuance (defensive: subscription.active already covers renewals, but this catches
+  the grant directly).
+- **`subscription.uncanceled`** handler — when a user clicks "Keep my plan" in Polar
+  dashboard after starting to cancel, re-extends Pro TTL (or recreates the Pro key
+  if the cancel event already deleted it).
+- **Explicit webhook dedupe by `webhook-id`** — atomic `SET grabio:wh_seen:<wid> NX EX 86400`
+  at top of handler. Polar retries no longer reprocess events. Belt-and-suspenders
+  protection for future INCR-based metrics.
+
+### Landing polish
+
+- Removed Free "Want more than 5/day…" footnote (cleaner card)
+- Removed Pro "Open this page on your iPhone to buy…" callout (no longer needed
+  with QR-bind flow)
+- Added `<link rel="preload" as="image">` for hero PNG + `<link rel="preconnect">`
+  to source CDN to improve mobile LCP
+
+### Smoke test results
+
+38/38 distinct cases passing across 8 sections:
+A · Landing/assets · B · Free flow (5/day cap) · C · Pro iPhone-direct · D · Pro
+Desktop+QR (11 sub-tests) · E · Refund/cancel · F · Idempotency+security ·
+G · Rebind · H · Watchdog
+
 ## [3.2.1] — 2026-05-17
 
 ### Fixed — **Critical webhook bug found during launch audit**
