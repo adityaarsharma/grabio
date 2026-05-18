@@ -4,6 +4,23 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
+## [3.3.7] — 2026-05-18
+
+### Changed — text menu reduced to single action: QR
+
+WhatsApp and iOS already let you copy text natively (long-press → Copy in
+every app). So having "Just copy the text" inside Grabio's text menu was
+busy-work — one extra tap for something the OS does in zero taps.
+
+Text menu now has exactly **1 option**:
+- 🔳 Generate QR code from this text
+
+That's the only text-share action where Grabio is faster than the OS
+(otherwise: WhatsApp text → switch to QR-generator app → paste → screenshot →
+back). Grabio: share → tap once → QR PNG in Photos.
+
+The `text-copy` handler is removed from `/v2/run`.
+
 ## [3.3.6] — 2026-05-18
 
 ### Removed — Translate feature (WhatsApp + iOS already do this natively)
