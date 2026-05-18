@@ -4,6 +4,23 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
+## [3.3.6] — 2026-05-18
+
+### Removed — Translate feature (WhatsApp + iOS already do this natively)
+
+WhatsApp now has built-in translation, and iOS 17+ added system-wide Translate
+in the share sheet. Adding a third translation surface inside Grabio was
+duplication, not differentiation. Removed entirely:
+
+- Text menu reverted from 3 options to 2: `🔳 QR generate · 📋 Copy`
+- `/v2/run` handlers for `text-translate` and `tr-<lang>` deleted
+- MyMemory API integration removed (saves the 10k-words/day quota for nothing)
+- All `grabio:metrics:action:text-translate-*` counters now dormant
+
+Grabio's text-share actions are now QR + Copy only. Both are things WhatsApp
+genuinely doesn't do well (WhatsApp's "share to QR" requires switching apps;
+Grabio does it inline).
+
 ## [3.3.5] — 2026-05-18
 
 ### Added — share-text translation via MyMemory free API
