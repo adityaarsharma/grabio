@@ -4,6 +4,24 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
+## [3.3.3] — 2026-05-18
+
+### Removed — 3 zombie v2 routes that violated share-first contract
+
+Logic Lens audit caught 3 dead routes that still accepted typed `license_key`
+in request body — unreachable from any v3 UI surface, but technically callable
+by anyone who knew the URL. v3 contract is share-first (no typed inputs from
+users); these endpoints violated that contract by their mere existence.
+
+Routes neutralized (return 410 Gone with friendly redirect):
+- `POST /pro/activate` — v2 license paste-key fallback
+- `POST /validate` — v2 license validate stub
+- `POST /convert-url` — v2 social-URL converter (long-dead since social
+  feature was retired in v3.0.0)
+
+Each 410 response includes `open_url` pointing to /#pricing so any old client
+hitting these routes can guide the user to the v3 share-first flow.
+
 ## [3.3.2] — 2026-05-18
 
 ### Fixed — WhatsApp text share misclassified as image
