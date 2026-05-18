@@ -4,6 +4,47 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
+## [3.3.4] — 2026-05-18
+
+### Fixed — WhatsApp text STILL misclassified after v3.3.2 (real-world iPhone payload)
+
+v3.3.2 added a `text` kind to `decideKindFromHints` but it only triggered when
+`input_text` was non-empty AND no other signal won. Real iPhone Shortcut payloads
+for shared WhatsApp text actually look like:
+
+```
+text=Food pedllar Bread pocket hrisjha ka ghar
+hint=Text         ← typeOf hint correctly says 'Text'
+media=Image       ← iOS Shortcut binary defaults media_type to 'Image' for text
+ext=?
+```
+
+The binary-side `media=Image` quirk meant Tier 2 (`kindFromMediaType('Image') → 'image'`)
+won before Tier 5 (text fallback). Users saw the image-conversion menu for text shares.
+
+Fix: added **Tier 1.5 — TEXT HINT OVERRIDE** in `decideKindFromHints`. When
+`input_type_hint` matches `/\btext\b/i` AND there's no real `file_ext`, force
+`kind='text'` regardless of what `media_type` claims. Verified against the exact
+log payload that triggered the user-reported bug.
+
+### Improved — QR decode robustness (3-strategy fallback)
+
+Real-world iPhone-camera QR shares (photo of a printed board / poster / sticker)
+fail with a single-pass decode because the QR can be:
+- Small in a large frame (needs no downscale)
+- Inverted (dark QR on light bg vs light on dark)
+- Low contrast / printed
+
+Both `/v2/run qr-decode` and `/api/v3/qr/decode` now try 3 strategies and return
+the first success:
+
+1. **2048×2048 max** (preserve detail for small-in-frame QR) + `inversionAttempts: 'attemptBoth'`
+2. **1024×1024** (current fast path) + attemptBoth
+3. **1536×1536 grayscale + sharpen** (last-resort for low-contrast / printed QR)
+
+Friendly error message updated when all 3 fail: "Make sure the QR is centered,
+well-lit, and takes up at least 1/4 of the photo."
+
 ## [3.3.3] — 2026-05-18
 
 ### Removed — 3 zombie v2 routes that violated share-first contract
