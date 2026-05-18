@@ -4,6 +4,47 @@ All notable user-facing changes to the public Grabio Shortcut and backend.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/) loosely. Semver applies to the Shortcut binary version users see on iCloud.
 
+## [3.3.2] — 2026-05-18
+
+### Fixed — WhatsApp text share misclassified as image
+
+`decideKindFromHints` returned `'unknown'` for plain text input (WhatsApp/Notes/
+Messages share). `menuForKind('unknown')` then fell through to a default
+`{ '📷 JPEG', '🎵 MP3-192', '📱 Compress as video', '📞 Ringtone }` menu — the
+first option ('📷 JPEG') made users perceive Grabio was treating their text as
+an image.
+
+Fix:
+- `decideKindFromHints` now returns `'text'` when non-empty `input_text` exists
+  but no URL/file/media signal does.
+- `menuForKind('text')` returns 2 sensible options:
+  - 🔳 Generate QR code from this text
+  - 📋 Just copy the text
+- `menuForKind` default fallback is now an empty object. /v2/menu detects the
+  empty case and returns a friendly `feature-info` message listing supported
+  share types instead of the old confusing menu.
+
+### Added — text → QR code generation
+
+- New `/v2/run` option `text-qr-generate`: encodes shared text as a 512×512
+  PNG QR code (errorCorrection M) and saves to Photos.
+- New `/v2/run` option `text-copy`: returns the text via `clipboard` field
+  for the Shortcut to copy back. Free 5/day rate-limit applies.
+
+### Audited — every share type now classifies correctly
+
+| Share | Kind | First option |
+|---|---|---|
+| Photo (jpg/png/heic) | image | 🔄 Change Format |
+| Live Photo | image | 🔄 Change Format |
+| Video (mp4/mov) | video | 📱 Compress for sharing |
+| Audio (mp3/m4a/wav) | audio | 🎵 MP3 — 128 kbps |
+| PDF | pdf | 📉 Compress PDF |
+| Webpage URL | url | 📄 Save as PDF |
+| Social URL (IG/TikTok/YT/FB) | feature-info | 📖 Read why this changed |
+| **Plain text (NEW)** | **text** | **🔳 Generate QR code** |
+| Empty / unrecognized | feature-info | 🚀 OK got it (with help text) |
+
 ## [3.3.1] — 2026-05-18
 
 ### Added — desktop checkout → QR-scan bind flow
